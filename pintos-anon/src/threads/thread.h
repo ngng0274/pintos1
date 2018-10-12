@@ -88,6 +88,9 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+
+    int prev_priority;			/* Previous Priority. 새로 추가함 */ 
+
     struct list_elem allelem;           /* List element for all threads list. */
     
     /* 새로 추가한 meber variable */
@@ -103,6 +106,10 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    struct lock* needed_lock;		/* Needed Lock. 새로 추가함 */
+
+    bool donated;			/* wheter the thread is donated or not. 새로 추가함 */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -143,5 +150,10 @@ int thread_get_load_avg (void);
 
 bool faster_time(const struct list_elem* a, const struct list_elem* b, void *aux);
 struct list* getblocked_thread_list(void);
+bool check_high_priority(const struct list_elem *elemA, const struct list_elem *elemB, void *aux);
+void run_higher_thread (void);
+
+void donate (struct lock* lock);
+void recover (struct lock* lock);
 
 #endif /* threads/thread.h */

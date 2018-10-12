@@ -205,6 +205,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  run_higher_thread();
+
   return tid;
 }
 
@@ -241,7 +243,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem, check_high_priority, NULL); /* priority>순 정렬 삽입 */
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -312,7 +314,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered(&ready_list, &cur->elem, check_high_priority, NULL); /* priority순 정렬 삽입 */
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -340,6 +342,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  run_higher_thread();
 }
 
 /* Returns the current thread's priority. */
@@ -467,6 +470,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->donated = false;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -520,7 +524,7 @@ void
 thread_schedule_tail (struct thread *prev)
 {
   struct thread *cur = running_thread ();
-  
+   
   ASSERT (intr_get_level () == INTR_OFF);
 
   /* Mark us as running. */
@@ -598,3 +602,67 @@ struct list* getblocked_thread_list(void) {
 	return &blocked_thread_list;
 }
 
+/* thread의 priority를 비교하는 함수 */
+bool check_high_priority(const struct list_elem *elemA, const struct list_elem *elemB, void *aux) {
+        const struct thread* threadA = list_entry(elemA, struct thread, elem);
+        const struct thread* threadB = list_entry(elemB, struct thread, elem);
+        return threadA->priority > threadB->priority;
+}
+
+/* 현재 running중인 thread와 ready_list맨 앞의 thread의 priority를 비교해서 더 높은 thread를 실행하는 함수 */
+void run_higher_thread()
+{
+	if(!list_empty(&ready_list)) {
+		struct thread* temp = list_entry(list_front(&ready_list), struct thread, elem);
+		if(temp->priority > thread_current()->priority)
+		{
+			list_sort(&ready_list, check_high_priority, NULL);
+			thread_yield ();
+		}
+	}
+
+}
+
+void donate(struct lock* nlock)
+{
+	if(nlock->holder == NULL)
+		return;
+
+	struct thread* holder_thread = nlock->holder;
+	struct thread* current_thread = thread_current ();
+
+	if(holder_thread->priority >= current_thread->priority)
+		return;
+
+	holder_thread->prev_priority = holder_thread->priority;
+	current_thread->prev_priority = current_thread->priority;
+
+	int temp = holder_thread->priority;
+	holder_thread->priority = current_thread->priority;
+	thread_set_priority(temp);
+
+	current_thread->donated = true;
+	if(holder_thread->needed_lock != NULL)
+		donate(holder_thread->needed_lock);
+}
+
+void recover(struct lock* nlock)
+{
+	if(nlock->holder == NULL)
+                return;
+	if(nlock->holder->donated)
+	{
+		struct thread* holder_thread = nlock->holder;
+	        struct thread* current_thread = thread_current ();
+
+	        holder_thread->prev_priority = holder_thread->priority;
+	        current_thread->prev_priority = current_thread->priority;
+
+	        int temp = holder_thread->priority;
+	        holder_thread->priority = current_thread->priority;
+		thread_set_priority(temp);
+
+		holder_thread->donated = false;
+	}
+
+}
