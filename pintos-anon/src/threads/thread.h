@@ -91,7 +91,11 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     
     /* 새로 추가한 meber variable */
+<<<<<<< HEAD
     int64_t wakeup_time; 				/* thread가 block 상태로 돌입할 때, unlock을 해주어야 할 tick을 저장하는 변수 */
+=======
+   	int64_t wakeup_time 				/* thread가 block 상태로 돌입할 때, unlock을 해주어야 할 tick을 저장하는 변수 */
+>>>>>>> e894dc71c6ec3001c7150a5c66249cf281ddbfe6
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */

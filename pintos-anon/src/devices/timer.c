@@ -93,10 +93,16 @@ timer_sleep (int64_t ticks)
   struct thread* cur = thread_current();
   enum intr_level old_level;
   old_level = intr_disable();
+<<<<<<< HEAD
   struct list* blocked_list = getblocked_thread_list();
   int64_t start = timer_ticks();
   cur->wakeup_time = start + ticks;
   list_insert_ordered(blocked_list, &cur->elem, faster_time, NULL);
+=======
+  int64_t start = timer_ticks();
+  cur->wakeup_time = start + ticks;
+  list_insert_ordered(&blocked_thread_list, &cur->elem, &faster_time, NULL);
+>>>>>>> e894dc71c6ec3001c7150a5c66249cf281ddbfe6
   thread_block();
   intr_set_level(old_level);
 }
@@ -104,6 +110,7 @@ timer_sleep (int64_t ticks)
 /* 새로 추가한 함수 */
 void wake_thread_up (void)
 {
+<<<<<<< HEAD
   struct list* blocked_list = getblocked_thread_list();
   if(list_empty(blocked_list))
 	return;
@@ -119,6 +126,15 @@ void wake_thread_up (void)
 	    }
 	    else
 		    break;
+=======
+  if(list_empty(blocked_thread_list))
+    return
+  else
+  {
+    while(list_entry(list_front(blocked_thread_list), struct thread, elem)->wakeup_time <= timer_ticks())
+    {
+      thread_unblock(list_entry(list_pop_front(blocked_thread_list), struct thread, elem));
+>>>>>>> e894dc71c6ec3001c7150a5c66249cf281ddbfe6
     }
   }
 }
