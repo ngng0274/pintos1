@@ -37,6 +37,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init(getblocked_thread_list());
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,11 +90,37 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
+  struct thread* cur = thread_current();
+  enum intr_level old_level;
+  old_level = intr_disable();
+  struct list* blocked_list = getblocked_thread_list();
+  int64_t start = timer_ticks();
+  cur->wakeup_time = start + ticks;
+  list_insert_ordered(blocked_list, &cur->elem, faster_time, NULL);
+  thread_block();
+  intr_set_level(old_level);
+}
 
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+/* 새로 추가한 함수 */
+void wake_thread_up (void)
+{
+  struct list* blocked_list = getblocked_thread_list();
+  if(list_empty(blocked_list))
+	return;
+  else
+  {
+    while(!list_empty(blocked_list))
+    {
+	    struct thread* cur = list_entry(list_front(blocked_list), struct thread, elem);
+	    if(cur->wakeup_time <= ticks)
+	    {
+		    list_pop_front(blocked_list);
+		    thread_unblock(cur);
+	    }
+	    else
+		    break;
+    }
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -171,6 +198,7 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+  wake_thread_up();
   thread_tick ();
 }
 
