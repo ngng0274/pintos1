@@ -588,7 +588,6 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 /* thread의 wakeup_time을 비교하는 함수 */
-<<<<<<< HEAD
 bool faster_time (const struct list_elem *elemA, const struct list_elem *elemB, void *aux) {
 	const struct thread* threadA = list_entry(elemA, struct thread, elem);
 	const struct thread* threadB = list_entry(elemB, struct thread, elem);
@@ -597,9 +596,5 @@ bool faster_time (const struct list_elem *elemA, const struct list_elem *elemB, 
 
 struct list* getblocked_thread_list(void) {
 	return &blocked_thread_list;
-=======
-bool faster_time (struct thread* ta, struct thread* tb) {
-  return ta->wakeup_time < tb->wakeup_time
->>>>>>> e894dc71c6ec3001c7150a5c66249cf281ddbfe6
 }
 
