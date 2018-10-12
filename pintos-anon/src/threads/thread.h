@@ -89,6 +89,9 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+    
+    /* 새로 추가한 meber variable */
+   	int64_t wakeup_time 				/* thread가 block 상태로 돌입할 때, unlock을 해주어야 할 tick을 저장하는 변수 */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */

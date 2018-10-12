@@ -24,6 +24,9 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* 새로 추가한 list */
+static struct list blocked_thread_list; /* sleep에 의해 block된 thread를 저장하는 list */
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -582,3 +585,9 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+/* thread의 wakeup_time을 비교하는 함수 */
+bool faster_time (struct thread* ta, struct thread* tb) {
+  return ta->wakeup_time < tb->wakeup_time
+}
+
