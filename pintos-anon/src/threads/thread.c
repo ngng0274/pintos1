@@ -634,14 +634,14 @@ void donate(struct lock* nlock)
 	if(holder_thread->priority >= current_thread->priority)
 		return;
 
-	holder_thread->prev_priority = holder_thread->priority;
-	current_thread->prev_priority = current_thread->priority;
+	if(holder_thread->donated == false)
+	{
+		holder_thread->prev_priority = holder_thread->priority;
+		holder_thread->donated = true;
+	}
 
-	int temp = holder_thread->priority;
 	holder_thread->priority = current_thread->priority;
-	thread_set_priority(temp);
 
-	current_thread->donated = true;
 	if(holder_thread->needed_lock != NULL)
 		donate(holder_thread->needed_lock);
 }
@@ -650,19 +650,29 @@ void recover(struct lock* nlock)
 {
 	if(nlock->holder == NULL)
                 return;
-	if(nlock->holder->donated)
+	if(thread_current()->donated)
 	{
-		struct thread* holder_thread = nlock->holder;
 	        struct thread* current_thread = thread_current ();
 
-	        holder_thread->prev_priority = holder_thread->priority;
-	        current_thread->prev_priority = current_thread->priority;
+	        current_thread->priority = current_thread->prev_priority;
 
-	        int temp = holder_thread->priority;
-	        holder_thread->priority = current_thread->priority;
-		thread_set_priority(temp);
-
-		holder_thread->donated = false;
+		current_thread->donated = false;
 	}
 
+}
+void printElemOfList(struct list *_list)
+{
+    struct list_elem *cur;
+    struct thread *cur_thread;
+     ASSERT(_list != NULL);
+     msg("");
+    msg("*******List Front*******");
+     for(cur = list_begin(_list); cur != list_end(_list); cur = list_next(cur))
+    {
+        cur_thread = list_entry(cur, struct thread, elem);
+        msg("%s priority : %d", cur_thread->name, cur_thread->priority);
+    }
+
+    msg("******* List End *******");
+    msg("");
 }

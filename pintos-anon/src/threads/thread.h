@@ -155,5 +155,5 @@ void run_higher_thread (void);
 
 void donate (struct lock* lock);
 void recover (struct lock* lock);
-
+void printElemOfList(struct list *_list);
 #endif /* threads/thread.h */
