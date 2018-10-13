@@ -159,4 +159,5 @@ void donate (struct lock* lock);
 void recover (struct lock* lock);
 void printElemOfList(struct list *_list);
 bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux);
+bool semasort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux);
 #endif /* threads/thread.h */

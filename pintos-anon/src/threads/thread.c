@@ -204,9 +204,8 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  
   run_higher_thread();
-
   return tid;
 }
 
@@ -341,7 +340,15 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  if(thread_current ()->donated == false)
+  
+  	thread_current ()->priority = new_priority;
+  else
+  {
+	  thread_current ()->prev_priority = new_priority;
+  	  return;
+  }
+  
   run_higher_thread();
 }
 
@@ -502,7 +509,10 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
+  {
+    list_sort(&ready_list, check_high_priority, NULL);
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -614,10 +624,10 @@ bool check_high_priority(const struct list_elem *elemA, const struct list_elem *
 void run_higher_thread()
 {
 	if(!list_empty(&ready_list)) {
+		list_sort(&ready_list, check_high_priority, NULL);
 		struct thread* temp = list_entry(list_front(&ready_list), struct thread, elem);
 		if(temp->priority > thread_current()->priority)
 		{
-			list_sort(&ready_list, check_high_priority, NULL);
 			thread_yield ();
 		}
 	}
@@ -671,7 +681,6 @@ void recover(struct lock* nlock)
 			if(list_empty(&high_lock->semaphore.waiters))
 			{
 				current_thread->priority = current_thread->prev_priority;
-				intr_set_level(old_level);
 
 				return;
 			}
@@ -717,6 +726,25 @@ bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void
 		const struct thread* threadA = list_entry(list_front(&lockA->semaphore.waiters), struct thread, elem);
 		const struct thread* threadB = list_entry(list_front(&lockB->semaphore.waiters), struct thread, elem);
 
+		return threadA->priority >= threadB->priority;
+	}
+}
+
+
+bool semasort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux)
+{
+        struct semaphore_elem* semaA = list_entry(elemA, struct semaphore_elem, elem);
+        struct semaphore_elem* semaB = list_entry(elemB, struct semaphore_elem, elem);
+
+        if(list_empty(&semaB->semaphore.waiters))
+                return false;
+        else if(list_empty(&semaA->semaphore.waiters))
+                return true;
+        else
+        {
+        	const struct thread* threadA = list_entry(list_front(&semaA->semaphore.waiters), struct thread, elem);
+		const struct thread* threadB = list_entry(list_front(&semaB->semaphore.waiters), struct thread, elem);
+		
 		return threadA->priority >= threadB->priority;
 	}
 }
