@@ -109,6 +109,8 @@ struct thread
 
     struct lock* needed_lock;		/* Needed Lock. 새로 추가함 */
 
+    struct list holding_locks;		/* 현 thread가 holding중인 lock들의 list */
+
     bool donated;			/* wheter the thread is donated or not. 새로 추가함 */
   };
 
@@ -156,4 +158,5 @@ void run_higher_thread (void);
 void donate (struct lock* lock);
 void recover (struct lock* lock);
 void printElemOfList(struct list *_list);
+bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux);
 #endif /* threads/thread.h */

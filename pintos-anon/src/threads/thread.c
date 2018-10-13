@@ -471,6 +471,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->donated = false;
+  list_init(&t->holding_locks);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -650,16 +651,40 @@ void recover(struct lock* nlock)
 {
 	if(nlock->holder == NULL)
                 return;
+
+	enum intr_level old_level = intr_disable();
+
 	if(thread_current()->donated)
 	{
 	        struct thread* current_thread = thread_current ();
 
-	        current_thread->priority = current_thread->prev_priority;
+	        if(list_empty(&current_thread->holding_locks))
+		{
+			current_thread->priority = current_thread->prev_priority;
+			current_thread->donated = false;
+		}
+		else
+		{
+			list_sort(&current_thread->holding_locks, locksort, NULL);
+			struct lock* high_lock = list_entry(list_front(&current_thread->holding_locks), struct lock, elem);
 
-		current_thread->donated = false;
+			if(list_empty(&high_lock->semaphore.waiters))
+			{
+				current_thread->priority = current_thread->prev_priority;
+				intr_set_level(old_level);
+
+				return;
+			}
+
+			struct thread* high_thread = list_entry(list_front(&high_lock->semaphore.waiters), struct thread, elem);
+
+			current_thread->priority = high_thread->priority;
+		}
 	}
 
+	intr_set_level(old_level);
 }
+
 void printElemOfList(struct list *_list)
 {
     struct list_elem *cur;
@@ -675,4 +700,23 @@ void printElemOfList(struct list *_list)
 
     msg("******* List End *******");
     msg("");
+}
+
+
+bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux)
+{
+	struct lock* lockA = list_entry(elemA, struct lock, elem);
+	struct lock* lockB = list_entry(elemB, struct lock, elem);
+
+	if(list_empty(&lockB->semaphore.waiters))
+		return true;
+	else if(list_empty(&lockA->semaphore.waiters))
+		return false;
+	else
+	{
+		const struct thread* threadA = list_entry(list_front(&lockA->semaphore.waiters), struct thread, elem);
+		const struct thread* threadB = list_entry(list_front(&lockB->semaphore.waiters), struct thread, elem);
+
+		return threadA->priority >= threadB->priority;
+	}
 }
