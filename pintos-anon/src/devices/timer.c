@@ -101,7 +101,7 @@ timer_sleep (int64_t ticks)
   intr_set_level(old_level);
 }
 
-/* 새로 추가한 함수 */
+/* blocked 상태의 thread를 unblocked하는 함수 (tick을 통해 판단) */
 void wake_thread_up (void)
 {
   struct list* blocked_list = getblocked_thread_list();
@@ -192,7 +192,7 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
@@ -202,8 +202,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_tick ();
   if(thread_mlfqs)
   {
+      /* recent cpu increase 1 */
       incr_recent_cpu_mlfqs();
-      if(ticks % TIMER_FREQ == 0) // 1sec 전체thread
+
+      if(ticks % TIMER_FREQ == 0) // 1sec 전체 thread
       {
    	  refresh_mlfqs();	
       }

@@ -69,7 +69,6 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       list_insert_ordered (&sema->waiters, &thread_current ()->elem, check_high_priority, NULL);
-//      list_push_back (&sema->waiters, &thread_current ()->elem);
       
       list_sort(&thread_current()->holding_locks, locksort, NULL);
       
@@ -209,6 +208,7 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
    
   thread_current()->needed_lock = lock;
+  /* lock의 holderdml priority로 donate 유무 판단 */
   donate(lock);
 
   sema_down (&lock->semaphore);
@@ -255,7 +255,7 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   list_remove(&lock->elem);
-
+  /* priority가 donated인가 확인한 후 recover */
   recover(lock);
 
   lock->holder = NULL;
@@ -276,7 +276,7 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
-
+
 /* One semaphore in a list. */
 //struct semaphore_elem 
 //  {
@@ -326,7 +326,6 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-//  list_insert_ordered (&cond->waiters, &waiter.elem, semasort, NULL);
   list_push_back (&cond->waiters, &waiter.elem);
   lock_release (lock);
   sema_down (&waiter.semaphore);

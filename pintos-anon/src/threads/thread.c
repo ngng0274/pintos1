@@ -191,8 +191,9 @@ thread_create (const char *name, int priority,
 
   /* Initialize thread. */
   init_thread (t, name, priority);
-
+  /* 부모의 nice를 받는다 */
   t->nice = thread_current()->nice;
+  /* 부모의 recent_cpu를 받는다 */
   t->recent_cpu = thread_current()->recent_cpu;
 
   tid = t->tid = allocate_tid ();
@@ -458,7 +459,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -620,7 +621,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
@@ -657,6 +658,7 @@ void run_higher_thread()
 
 }
 
+/* priority가 낮은 thread에서 lock을 release 해야할 때 priority를 donate */
 void donate(struct lock* nlock)
 {
 	if(nlock->holder == NULL)
@@ -679,7 +681,7 @@ void donate(struct lock* nlock)
 	if(holder_thread->needed_lock != NULL)
 		donate(holder_thread->needed_lock);
 }
-
+/* donate한 priority를 recover */
 void recover(struct lock* nlock)
 {
 	if(nlock->holder == NULL)
@@ -717,6 +719,7 @@ void recover(struct lock* nlock)
 	intr_set_level(old_level);
 }
 
+/* lock을 priority가 큰 순서로 정렬하는 함수*/
 bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux)
 {
 	struct lock* lockA = list_entry(elemA, struct lock, elem);
@@ -735,7 +738,7 @@ bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void
 	}
 }
 
-
+/* semaphore를 priority가 큰 순서로 정렬하는 함수 */
 bool semasort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux)
 {
         struct semaphore_elem* semaA = list_entry(elemA, struct semaphore_elem, elem);
@@ -754,7 +757,7 @@ bool semasort(const struct list_elem* elemA, const struct list_elem* elemB, void
 	}
 }
 
-
+/* mlfqs를 사용할 때 current thread의 priority를 계산하여 update */
 void cal_priority_mlfqs(struct thread* cur)
 {
 	if(cur == idle_thread)
@@ -768,13 +771,13 @@ void cal_priority_mlfqs(struct thread* cur)
 		cur->priority = PRI_MIN;
 }
 
-
+/* mlfqs를 사용할 때 current thread의 recent cpu를 계산하여 update */
 void cal_recent_cpu_mlfqs(struct thread* cur)
 {
 	cur->recent_cpu = fp_add_int(fp_mul(fp_div(fp_mul_int(load_avg, 2) , fp_add_int(fp_mul_int(load_avg, 2),1)), cur->recent_cpu), cur->nice);
 }
 
-
+/* load avg를 계산하고 모든 thread의 priority와 recent cpu를 update */
 void refresh_mlfqs()
 {
 	ASSERT(thread_mlfqs);
@@ -802,7 +805,7 @@ void refresh_mlfqs()
 
 }
 
-
+/* recent cpu increase 1 */
 void incr_recent_cpu_mlfqs(void)
 {
 	if(thread_current() != idle_thread)
