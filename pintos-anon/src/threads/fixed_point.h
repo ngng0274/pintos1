@@ -5,16 +5,16 @@ typedef int fp;
 
 #define shift 14
 
-fp fp_conv (int a);
-fp fp_add (fp a, fp b);
-fp fp_add_int (fp a, int b);
-fp fp_sub (fp a, fp b);
-fp fp_sub_int (fp a, int b);
-fp fp_mul_int (fp a, int b);
-fp fp_div_int (fp a, int b);
-fp fp_mul (fp a, fp b);
-fp fp_div (fp a, fp b);
-int fp_int_part (fp a);
-int fp_round (fp a);
+#define fp_conv(a) ((fp) (a << shift))
+#define fp_add(a, b) (a + b)
+#define fp_add_int(a, b) (a + (b << shift))
+#define fp_sub(a, b) (a - b)
+#define fp_sub_int(a, b) (a - (b << shift))
+#define fp_mul_int(a, b) (a * b)
+#define fp_div_int(a, b) (a / b)
+#define fp_mul(a, b) ((fp) (((int64_t) a) * b >> shift))
+#define fp_div(a, b) ((fp) (((int64_t) a << shift) / b))
+#define fp_int_part(a) (a >> shift)
+#define fp_round(a) (a >= 0 ? ((a + (1 << (shift - 1))) >> shift) : ((a - (1 << (shift - 1))) >> shift))
 
 #endif

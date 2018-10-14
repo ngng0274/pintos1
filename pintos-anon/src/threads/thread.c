@@ -197,6 +197,8 @@ thread_create (const char *name, int priority,
 
   tid = t->tid = allocate_tid ();
 
+  enum intr_level old_level = intr_disable();
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -211,6 +213,8 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  intr_set_level (old_level);
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -373,11 +377,15 @@ thread_get_priority (void)
 void
 thread_set_nice (int new_nice) 
 {
+  enum intr_level old_level = intr_disable();
+
   thread_current ()->nice = new_nice;
 
   cal_priority_mlfqs(thread_current());
 
   run_higher_thread();
+
+  intr_set_level(old_level);
   // recalculates the thread's priority based on the new value. If running thread no longer has the highest priority. yields.
 }
 
@@ -493,7 +501,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->holding_locks);
 
   t->nice = 0;
-  t->recent_cpu = 0;
+  t->recent_cpu = fp_conv(0);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -709,24 +717,6 @@ void recover(struct lock* nlock)
 	intr_set_level(old_level);
 }
 
-void printElemOfList(struct list *_list)
-{
-    struct list_elem *cur;
-    struct thread *cur_thread;
-     ASSERT(_list != NULL);
-     msg("");
-    msg("*******List Front*******");
-     for(cur = list_begin(_list); cur != list_end(_list); cur = list_next(cur))
-    {
-        cur_thread = list_entry(cur, struct thread, elem);
-        msg("%s priority : %d", cur_thread->name, cur_thread->priority);
-    }
-
-    msg("******* List End *******");
-    msg("");
-}
-
-
 bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux)
 {
 	struct lock* lockA = list_entry(elemA, struct lock, elem);
@@ -794,7 +784,7 @@ void refresh_mlfqs()
 	if(thread_current() != idle_thread)
 		ready_size++;
 
-	load_avg = fp_add(fp_mul_int(fp_div_int(load_avg,60),59) , fp_div_int(fp_conv(ready_size), 60));
+	load_avg = fp_add(fp_div_int(fp_mul_int(load_avg,59),60) , fp_div_int(fp_conv(ready_size), 60));
 
 	struct thread* cur;
 	struct list_elem *itr = list_begin(&all_list);
@@ -818,3 +808,4 @@ void incr_recent_cpu_mlfqs(void)
 	if(thread_current() != idle_thread)
 		thread_current()->recent_cpu = fp_add_int(thread_current()->recent_cpu, 1);
 }
+
