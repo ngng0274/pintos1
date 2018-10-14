@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "fixed_point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -112,6 +113,13 @@ struct thread
     struct list holding_locks;		/* 현 thread가 holding중인 lock들의 list */
 
     bool donated;			/* wheter the thread is donated or not. 새로 추가함 */
+
+
+
+    int nice;
+    fp recent_cpu;
+
+
   };
 
 /* If false (default), use round-robin scheduler.
@@ -160,4 +168,8 @@ void recover (struct lock* lock);
 void printElemOfList(struct list *_list);
 bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux);
 bool semasort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux);
+void cal_priority_mlfqs(struct thread* cur);
+void cal_recent_cpu_mlfqs(struct thread* cur);
+void refresh_mlfqs(void);
+void incr_recent_cpu_mlfqs(void);
 #endif /* threads/thread.h */

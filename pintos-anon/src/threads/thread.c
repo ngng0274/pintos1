@@ -13,12 +13,16 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "threads/fixed_point.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
+
+static fp load_avg;
+
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -114,6 +118,8 @@ thread_start (void)
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
+  load_avg = fp_conv(0); // load_avg 초기화
+
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
@@ -185,6 +191,10 @@ thread_create (const char *name, int priority,
 
   /* Initialize thread. */
   init_thread (t, name, priority);
+
+  t->nice = thread_current()->nice;
+  t->recent_cpu = thread_current()->recent_cpu;
+
   tid = t->tid = allocate_tid ();
 
   /* Stack frame for kernel_thread(). */
@@ -361,33 +371,35 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int new_nice) 
 {
-  /* Not yet implemented. */
+  thread_current ()->nice = new_nice;
+
+  cal_priority_mlfqs(thread_current());
+
+  run_higher_thread();
+  // recalculates the thread's priority based on the new value. If running thread no longer has the highest priority. yields.
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current ()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return fp_round(fp_mul_int(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return fp_round(fp_mul_int(thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -479,6 +491,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   t->donated = false;
   list_init(&t->holding_locks);
+
+  t->nice = 0;
+  t->recent_cpu = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -747,4 +762,59 @@ bool semasort(const struct list_elem* elemA, const struct list_elem* elemB, void
 		
 		return threadA->priority >= threadB->priority;
 	}
+}
+
+
+void cal_priority_mlfqs(struct thread* cur)
+{
+	if(cur == idle_thread)
+		return;
+
+	cur->priority = fp_int_part(fp_sub(fp_sub(fp_conv(PRI_MAX),(fp_div_int(cur->recent_cpu, 4))),(fp_mul_int(fp_conv(cur->nice),2))));
+
+	if (cur->priority > PRI_MAX)
+		cur->priority = PRI_MAX;
+	else if (cur->priority < PRI_MIN)
+		cur->priority = PRI_MIN;
+}
+
+
+void cal_recent_cpu_mlfqs(struct thread* cur)
+{
+	cur->recent_cpu = fp_add_int(fp_mul(fp_div(fp_mul_int(load_avg, 2) , fp_add_int(fp_mul_int(load_avg, 2),1)), cur->recent_cpu), cur->nice);
+}
+
+
+void refresh_mlfqs()
+{
+	ASSERT(thread_mlfqs);
+
+	size_t ready_size = list_size(&ready_list);
+
+	if(thread_current() != idle_thread)
+		ready_size++;
+
+	load_avg = fp_add(fp_mul_int(fp_div_int(load_avg,60),59) , fp_div_int(fp_conv(ready_size), 60));
+
+	struct thread* cur;
+	struct list_elem *itr = list_begin(&all_list);
+
+	for(; itr != list_end(&all_list); itr = list_next(itr))
+	{
+		cur = list_entry(itr, struct thread, allelem);
+
+		if(cur != idle_thread)
+		{
+			cal_priority_mlfqs(cur);
+			cal_recent_cpu_mlfqs(cur);
+		}
+	}
+
+}
+
+
+void incr_recent_cpu_mlfqs(void)
+{
+	if(thread_current() != idle_thread)
+		thread_current()->recent_cpu = fp_add_int(thread_current()->recent_cpu, 1);
 }

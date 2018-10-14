@@ -200,6 +200,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   wake_thread_up();
   thread_tick ();
+  if(thread_mlfqs)
+  {
+      incr_recent_cpu_mlfqs();
+      if(ticks % TIMER_FREQ == 0) // 1sec 전체thread
+      {
+   	  refresh_mlfqs();	
+      }
+      else if(ticks % 4 == 0) // 4ticks 현재 thread
+      {
+	  cal_priority_mlfqs(thread_current());	
+      }
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
