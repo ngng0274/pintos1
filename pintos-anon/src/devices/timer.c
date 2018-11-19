@@ -93,24 +93,17 @@ timer_sleep (int64_t ticks)
   struct thread* cur = thread_current();
   enum intr_level old_level;
   old_level = intr_disable();
-<<<<<<< HEAD
   struct list* blocked_list = getblocked_thread_list();
   int64_t start = timer_ticks();
   cur->wakeup_time = start + ticks;
   list_insert_ordered(blocked_list, &cur->elem, faster_time, NULL);
-=======
-  int64_t start = timer_ticks();
-  cur->wakeup_time = start + ticks;
-  list_insert_ordered(&blocked_thread_list, &cur->elem, &faster_time, NULL);
->>>>>>> e894dc71c6ec3001c7150a5c66249cf281ddbfe6
   thread_block();
   intr_set_level(old_level);
 }
 
-/* 새로 추가한 함수 */
+/* blocked 상태의 thread를 unblocked하는 함수 (tick을 통해 판단) */
 void wake_thread_up (void)
 {
-<<<<<<< HEAD
   struct list* blocked_list = getblocked_thread_list();
   if(list_empty(blocked_list))
 	return;
@@ -126,15 +119,6 @@ void wake_thread_up (void)
 	    }
 	    else
 		    break;
-=======
-  if(list_empty(blocked_thread_list))
-    return
-  else
-  {
-    while(list_entry(list_front(blocked_thread_list), struct thread, elem)->wakeup_time <= timer_ticks())
-    {
-      thread_unblock(list_entry(list_pop_front(blocked_thread_list), struct thread, elem));
->>>>>>> e894dc71c6ec3001c7150a5c66249cf281ddbfe6
     }
   }
 }
@@ -208,7 +192,7 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
@@ -216,6 +200,20 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   wake_thread_up();
   thread_tick ();
+  if(thread_mlfqs)
+  {
+      /* recent cpu increase 1 */
+      incr_recent_cpu_mlfqs();
+
+      if(ticks % TIMER_FREQ == 0) // 1sec 전체 thread
+      {
+   	  refresh_mlfqs();	
+      }
+      else if(ticks % 4 == 0) // 4ticks 현재 thread
+      {
+	  cal_priority_mlfqs(thread_current());	
+      }
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

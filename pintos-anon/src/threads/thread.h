@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "fixed_point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -88,14 +89,13 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+
+    int prev_priority;			/* Previous Priority. 새로 추가함 */ 
+
     struct list_elem allelem;           /* List element for all threads list. */
     
     /* 새로 추가한 meber variable */
-<<<<<<< HEAD
     int64_t wakeup_time; 				/* thread가 block 상태로 돌입할 때, unlock을 해주어야 할 tick을 저장하는 변수 */
-=======
-   	int64_t wakeup_time 				/* thread가 block 상태로 돌입할 때, unlock을 해주어야 할 tick을 저장하는 변수 */
->>>>>>> e894dc71c6ec3001c7150a5c66249cf281ddbfe6
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -107,6 +107,19 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    struct lock* needed_lock;		/* Needed Lock. 새로 추가함 */
+
+    struct list holding_locks;		/* 현 thread가 holding중인 lock들의 list */
+
+    bool donated;			/* wheter the thread is donated or not. 새로 추가함 */
+
+
+
+    int nice;
+    fp recent_cpu;
+
+
   };
 
 /* If false (default), use round-robin scheduler.
@@ -147,5 +160,16 @@ int thread_get_load_avg (void);
 
 bool faster_time(const struct list_elem* a, const struct list_elem* b, void *aux);
 struct list* getblocked_thread_list(void);
+bool check_high_priority(const struct list_elem *elemA, const struct list_elem *elemB, void *aux);
+void run_higher_thread (void);
 
+void donate (struct lock* lock);
+void recover (struct lock* lock);
+
+bool locksort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux);
+bool semasort(const struct list_elem* elemA, const struct list_elem* elemB, void *aux);
+void cal_priority_mlfqs(struct thread* cur);
+void cal_recent_cpu_mlfqs(struct thread* cur);
+void refresh_mlfqs(void);
+void incr_recent_cpu_mlfqs(void);
 #endif /* threads/thread.h */
